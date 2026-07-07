@@ -1,0 +1,6 @@
+{
+  "name": "Survey Tools Hub",
+  "description": "PDF coordinate extractor, location map, leveling, and point-signing tools for field surveying.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

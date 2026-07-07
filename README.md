@@ -1,11 +1,24 @@
-<div align="center">
+# Survey Tools Hub
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+This application has been migrated to a Full-Stack architecture for improved reliability and performance.
 
-  <h1>Built with AI Studio</h2>
+## Structure
+- **Frontend**: Vite + TypeScript (React-like logic with vanilla TS)
+- **Backend**: Express.js server (running on Node.js)
+- **Database**: In-memory store (Ready for Firestore integration)
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Local Development
+1. Install dependencies: `npm install`
+2. Start development server: `npm run dev`
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Deployment
+The app is configured to be deployed as a Full-Stack application.
+- Build: `npm run build`
+- Start: `npm run start`
 
-</div>
+## Features
+- Survey Coordinate Extractor (PDF)
+- Location Map (Leaflet)
+- Leveling Tool
+- Point Signing
+- DXF Site Plan Viewer

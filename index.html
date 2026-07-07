@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survey Tools Hub</title>
+  <meta name="description" content="PDF coordinate extractor, location map, leveling, and point-signing tools for field surveying" />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Survey Tools" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════
+       HOME PAGE
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="homeView">
+
+    <header class="home-header">
+      <div class="home-header-inner">
+        <span class="home-logo">🛠</span>
+        <div>
+          <h1 class="home-title">Survey Tools Hub</h1>
+          <p class="home-sub">Select a tool to get started</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="home-main">
+
+      <div class="tools-grid">
+        <button class="tool-card" data-tool="survey-extractor">
+          <span class="tool-card-icon">📐</span>
+          <div class="tool-card-body">
+            <h3 class="tool-card-title"><span class="tool-card-num">1.</span> Survey Coordinate Extractor</h3>
+            <p class="tool-card-desc">Extract Point · Easting · Northing · Elevation from PDF survey reports</p>
+          </div>
+          <span class="tool-card-arrow">›</span>
+        </button>
+
+        <button class="tool-card" data-tool="location-map">
+          <span class="tool-card-icon">📍</span>
+          <div class="tool-card-body">
+            <h3 class="tool-card-title"><span class="tool-card-num">2.</span> Location Map</h3>
+            <p class="tool-card-desc">Save fixed points and navigate to them directly via Google Maps</p>
+          </div>
+          <span class="tool-card-arrow">›</span>
+        </button>
+
+        <button class="tool-card" data-tool="leveling">
+          <span class="tool-card-icon">📏</span>
+          <div class="tool-card-body">
+            <h3 class="tool-card-title"><span class="tool-card-num">3.</span> Leveling</h3>
+            <p class="tool-card-desc">Calculate elevations using height of instrument method — BS · IS · FS</p>
+          </div>
+          <span class="tool-card-arrow">›</span>
+        </button>
+
+        <button class="tool-card" data-tool="point-signing">
+          <span class="tool-card-icon">✍️</span>
+          <div class="tool-card-body">
+            <h3 class="tool-card-title"><span class="tool-card-num">4.</span> Point Signing</h3>
+            <p class="tool-card-desc">Walk the map point-by-point in the field and sign each one off, with a final report</p>
+          </div>
+          <span class="tool-card-arrow">›</span>
+        </button>
+
+        <button class="tool-card" data-tool="dxf-site-plan">
+          <span class="tool-card-icon">📐</span>
+          <div class="tool-card-body">
+            <h3 class="tool-card-title"><span class="tool-card-num">5.</span> DXF Site Plan</h3>
+            <p class="tool-card-desc">View a DXF plan, measure and extract coordinates, then georeference it onto a satellite map</p>
+          </div>
+          <span class="tool-card-arrow">›</span>
+        </button>
+      </div>
+
+    </main>
+
+    <footer class="home-footer">
+      <span id="appVersion" class="home-version"></span>
+    </footer>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOOL: Survey Coordinate Extractor
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="toolView" hidden>
+
+    <header class="app-header">
+      <button class="back-btn" id="backBtn" aria-label="Back">‹</button>
+      <div class="header-inner">
+        <div class="header-icon">📐</div>
+        <div>
+          <h1>Coordinate Extractor</h1>
+          <p>Upload a PDF survey report to extract coordinates</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+
+      <!-- ── Upload zone ── -->
+      <section class="upload-section">
+        <label class="drop-zone" id="dropZone" tabindex="0" role="button"
+               aria-label="Upload PDF file — press Enter or Space to browse">
+          <svg class="drop-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M40 8H16a4 4 0 0 0-4 4v40a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V24L40 8z"/>
+            <polyline points="40 8 40 24 56 24"/>
+            <line x1="32" y1="36" x2="32" y2="52"/>
+            <polyline points="25 43 32 36 39 43"/>
+          </svg>
+          <p class="drop-title">Drop PDF here</p>
+          <p class="drop-sub">or <span class="drop-link">click to browse</span></p>
+          <input type="file" id="fileInput" accept=".pdf" class="file-input-hidden" tabindex="-1" />
+        </label>
+
+        <div class="file-badge" id="fileBadge" hidden>
+          <span class="file-badge-icon">📄</span>
+          <span class="file-badge-name" id="fileName"></span>
+          <button class="btn-clear" id="clearBtn" title="Remove file">✕</button>
+        </div>
+      </section>
+
+      <!-- ── Progress ── -->
+      <section class="progress-section" id="progressSection" hidden>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <p class="progress-label" id="progressLabel">Initialising…</p>
+      </section>
+
+      <!-- ── Error banner ── -->
+      <div class="error-banner" id="errorBanner" role="alert" hidden>
+        <span class="error-icon">⚠</span>
+        <span id="errorText"></span>
+      </div>
+
+      <!-- ── Results ── -->
+      <section class="results-section" id="resultsSection" hidden>
+
+        <div class="results-toolbar">
+          <div class="results-stats" id="resultsStats"></div>
+          <div class="export-group">
+            <span class="export-label">Export:</span>
+            <button class="btn btn-export" id="exportCsvBtn">CSV</button>
+            <button class="btn btn-export" id="exportAutocadBtn">AutoCAD&nbsp;TXT</button>
+            <button class="btn btn-export" id="exportJsonBtn">JSON</button>
+            <button class="btn btn-map"     id="mapToggleBtn">🗺 Map</button>
+            <!-- Zones 30–42 = same range scanned by auto-detect (mapView.ts) -->
+            <select id="utmZoneSelect" class="zone-select">
+              <option value="auto" selected>Auto</option>
+              <optgroup label="North">
+                <option value="30N">30N</option>
+                <option value="31N">31N</option>
+                <option value="32N">32N</option>
+                <option value="33N">33N</option>
+                <option value="34N">34N</option>
+                <option value="35N">35N</option>
+                <option value="36N">36N</option>
+                <option value="37N">37N</option>
+                <option value="38N">38N</option>
+                <option value="39N">39N</option>
+                <option value="40N">40N</option>
+                <option value="41N">41N</option>
+                <option value="42N">42N</option>
+              </optgroup>
+              <optgroup label="South">
+                <option value="30S">30S</option>
+                <option value="31S">31S</option>
+                <option value="32S">32S</option>
+                <option value="33S">33S</option>
+                <option value="34S">34S</option>
+                <option value="35S">35S</option>
+                <option value="36S">36S</option>
+                <option value="37S">37S</option>
+                <option value="38S">38S</option>
+                <option value="39S">39S</option>
+                <option value="40S">40S</option>
+                <option value="41S">41S</option>
+                <option value="42S">42S</option>
+              </optgroup>
+              <option value="dltm">DLTM</option>
+            </select>
+            <button class="btn btn-pdfview" id="pdfViewToggleBtn">📄 PDF View</button>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="results-table" id="resultsTable">
+            <thead>
+              <tr>
+                <th class="col-del"></th>
+                <th class="col-pt" data-sort="point">Point</th>
+                <th class="col-num" data-sort="northing">Northing (N)</th>
+                <th class="col-num" data-sort="easting">Easting (E)</th>
+                <th class="col-num" data-sort="elevation">Elevation (Z)</th>
+                <th class="col-pg" data-sort="page">Page</th>
+                <th class="col-count">Count</th>
+                <th class="col-move"></th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+
+        <!-- ── PDF Viewer ── -->
+        <div id="pdfViewerSection" hidden>
+          <div class="pdf-viewer-bar">
+            <button class="btn btn-icon" id="pdfPrevBtn" disabled>◀</button>
+            <span id="pdfPageInfo" class="pdf-page-info">1 / 1</span>
+            <button class="btn btn-icon" id="pdfNextBtn" disabled>▶</button>
+            <span class="pdf-legend"><span class="pdf-legend-dot"></span>Extracted rows</span>
+          </div>
+          <div id="pdfViewerContainer">
+            <canvas id="pdfCanvas"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── Map Section (Separate) ── -->
+      <section class="map-results-section" id="mapResultsSection" hidden>
+        <div id="mapSection">
+          <div class="map-divider"></div>
+          <div class="map-bar">
+            <span class="map-zone-badge" id="mapZoneInfo"></span>
+          </div>
+          <div id="mapContainer"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOOL: Location Map
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="locationMapView" hidden>
+
+    <header class="app-header">
+      <button class="back-btn" id="locMapBackBtn" aria-label="Back">‹</button>
+      <div class="header-inner">
+        <div class="header-icon">📍</div>
+        <div>
+          <h1>Location Map</h1>
+          <p>Save your points and navigate to them via Google Maps</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+
+      <!-- ── Add point form ── -->
+      <section class="loc-form-card">
+        <input class="loc-input" id="locName" type="text" placeholder="Point name or location…" autocomplete="off" />
+        <textarea class="loc-input loc-desc-input" id="locDesc" placeholder="Details (optional)…" autocomplete="off"></textarea>
+
+        <!-- Format tabs -->
+        <div class="loc-fmt-tabs" id="locFmtTabs">
+          <button class="loc-fmt-tab active" data-fmt="dd">Decimal Degrees</button>
+          <button class="loc-fmt-tab"        data-fmt="utm">UTM</button>
+          <button class="loc-fmt-tab"        data-fmt="dltm">DLTM</button>
+        </div>
+
+        <!-- DD panel -->
+        <div class="loc-coords-panel" id="locPanelDD">
+          <div class="loc-inputs-row">
+            <input class="loc-input" id="locLat" type="number" step="any" placeholder="Latitude" />
+            <input class="loc-input" id="locLng" type="number" step="any" placeholder="Longitude" />
+          </div>
+        </div>
+
+        <!-- UTM panel -->
+        <div class="loc-coords-panel" id="locPanelUTM" hidden>
+          <div class="loc-inputs-row">
+            <input class="loc-input" id="locUtmN"    type="number" step="any" placeholder="Northing (m)" />
+            <input class="loc-input" id="locUtmE"    type="number" step="any" placeholder="Easting (m)" />
+          </div>
+          <div class="loc-inputs-row">
+            <input class="loc-input" id="locUtmZone" type="number" min="1" max="60" placeholder="Zone (1–60)" value="40" />
+            <select class="loc-select loc-select--hemi" id="locUtmHemi">
+              <option value="N">N — North</option>
+              <option value="S">S — South</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- DLTM panel — Dubai Local TM (EPSG:3997) -->
+        <div class="loc-coords-panel" id="locPanelDLTM" hidden>
+          <div class="loc-inputs-row">
+            <input class="loc-input" id="locDltmN" type="number" step="any" placeholder="Northing (m)" />
+            <input class="loc-input" id="locDltmE" type="number" step="any" placeholder="Easting (m)" />
+          </div>
+        </div>
+
+        <!-- Error message -->
+        <div class="loc-error-msg" id="locErrorMsg" hidden></div>
+
+        <div class="loc-actions-row">
+          <button class="btn loc-btn-gps"  id="locGpsBtn">📍 My Location</button>
+          <button class="btn loc-btn-pick" id="locPickBtn">📌 Pick from Map</button>
+          <button class="btn loc-btn-add"  id="locAddBtn">+ Add</button>
+        </div>
+      </section>
+
+      <!-- ── Saved points list ── -->
+      <div class="loc-points-list" id="locPointsList"></div>
+
+      <!-- ── Map hint bar + map ── -->
+      <div class="loc-map-section">
+        <div class="loc-map-bar" id="locMapBar" hidden>
+          <span class="loc-map-hint">Click on the map to select a location…</span>
+          <button class="btn loc-btn-cancel-pick" id="locCancelPickBtn">Cancel</button>
+        </div>
+        <div id="locMapContainer"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOOL: Leveling
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="levelingView" hidden>
+
+    <header class="app-header">
+      <button class="back-btn" id="lvlBackBtn" aria-label="Back">‹</button>
+      <div class="header-inner">
+        <div class="header-icon">📏</div>
+        <div>
+          <h1>Leveling</h1>
+          <p>Height of instrument method — Backsight · Intermediate · Foresight</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+
+      <!-- BM setup -->
+      <section class="lvl-bm-card">
+        <div class="lvl-bm-row">
+          <div class="lvl-field">
+            <label class="lvl-label">Benchmark Name</label>
+            <input class="lvl-input" id="lvlBmName" type="text" placeholder="BM-1" autocomplete="off" />
+          </div>
+          <div class="lvl-field">
+            <label class="lvl-label">Benchmark Elevation (m)</label>
+            <input class="lvl-input" id="lvlBmElev" type="number" step="any" placeholder="100.000" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Rows table -->
+      <section class="lvl-table-wrap">
+        <div class="lvl-table-scroll">
+          <table class="lvl-table" id="lvlTable">
+            <thead>
+              <tr>
+                <th class="lvl-col-stn">Station</th>
+                <th class="lvl-col-bs">Backsight<br><span class="lvl-th-sub">BS</span></th>
+                <th class="lvl-col-is">Intermediate<br><span class="lvl-th-sub">IS</span></th>
+                <th class="lvl-col-fs">Foresight<br><span class="lvl-th-sub">FS</span></th>
+                <th class="lvl-col-hi">Height of Instr.<br><span class="lvl-th-sub">HI</span></th>
+                <th class="lvl-col-elev">Elevation</th>
+                <th class="lvl-col-del"></th>
+              </tr>
+            </thead>
+            <tbody id="lvlBody"></tbody>
+          </table>
+        </div>
+        <button class="btn lvl-add-btn" id="lvlAddRow">+ Add Row</button>
+      </section>
+
+      <!-- Arithmetic check -->
+      <section class="lvl-check-card" id="lvlCheckCard" hidden>
+        <div class="lvl-check-title">Arithmetic Check</div>
+        <div class="lvl-check-grid">
+          <div class="lvl-check-item">
+            <span class="lvl-check-label">Sum of Backsights ΣBS</span>
+            <span class="lvl-check-val" id="lvlSumBS">—</span>
+          </div>
+          <div class="lvl-check-item">
+            <span class="lvl-check-label">Sum of Foresights ΣFS</span>
+            <span class="lvl-check-val" id="lvlSumFS">—</span>
+          </div>
+          <div class="lvl-check-item">
+            <span class="lvl-check-label">ΣBS − ΣFS</span>
+            <span class="lvl-check-val" id="lvlDiffBSFS">—</span>
+          </div>
+          <div class="lvl-check-item">
+            <span class="lvl-check-label">Final Elev − Initial Elev</span>
+            <span class="lvl-check-val" id="lvlDiffElev">—</span>
+          </div>
+        </div>
+        <div class="lvl-check-result" id="lvlCheckResult"></div>
+      </section>
+
+      <!-- Export -->
+      <div class="lvl-actions-row">
+        <button class="btn btn-export" id="lvlExportCsv">Export CSV</button>
+        <button class="btn lvl-reset-btn" id="lvlReset">Clear All</button>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOOL: Point Signing
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="pointSignView" hidden>
+
+    <header class="app-header">
+      <button class="back-btn" id="psBackBtn" aria-label="Back">‹</button>
+      <div class="header-inner">
+        <div class="header-icon">✍️</div>
+        <div>
+          <h1>Point Signing</h1>
+          <p>Upload points, walk the map, and sign each one off</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Step 1: Upload ── -->
+    <main class="app-main" id="psUploadSection">
+      <!-- Shown instead of the drop zone when a previous field session was
+           interrupted (tab closed, phone call, low battery) and can resume. -->
+      <section class="lvl-check-card ps-resume-card" id="psResumeCard" hidden>
+        <p class="drop-title">↻ Unfinished signing session found</p>
+        <p class="drop-sub" id="psResumeDetail"></p>
+        <div class="ps-action-buttons">
+          <button class="btn loc-btn-add" id="psResumeBtn">Resume</button>
+          <button class="btn ps-btn-obstructed" id="psDiscardBtn">Start New</button>
+        </div>
+      </section>
+
+      <section class="upload-section">
+        <label class="drop-zone" id="psDropZone" tabindex="0" role="button"
+               aria-label="Upload a points file — press Enter or Space to browse">
+          <svg class="drop-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M40 8H16a4 4 0 0 0-4 4v40a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V24L40 8z"/>
+            <polyline points="40 8 40 24 56 24"/>
+            <line x1="32" y1="36" x2="32" y2="52"/>
+            <polyline points="25 43 32 36 39 43"/>
+          </svg>
+          <p class="drop-title">Drop a PDF or CSV here</p>
+          <p class="drop-sub">or <span class="drop-link">click to browse</span></p>
+          <input type="file" id="psFileInput" accept=".pdf,.csv" class="file-input-hidden" tabindex="-1" />
+        </label>
+
+        <div class="file-badge" id="psFileBadge" hidden>
+          <span class="file-badge-icon">📄</span>
+          <span class="file-badge-name" id="psFileName"></span>
+          <button class="btn-clear" id="psClearBtn" title="Remove file">✕</button>
+        </div>
+      </section>
+
+      <section class="progress-section" id="psProgressSection" hidden>
+        <div class="progress-track">
+          <div class="progress-fill" id="psProgressFill"></div>
+        </div>
+        <p class="progress-label" id="psProgressLabel">Initialising…</p>
+      </section>
+
+      <div class="error-banner" id="psErrorBanner" role="alert" hidden>
+        <span class="error-icon">⚠</span>
+        <span id="psErrorText"></span>
+      </div>
+    </main>
+
+    <!-- ── Step 2: Sign points on the map ── -->
+    <div id="psPointsSection" hidden>
+
+      <div class="ps-toolbar">
+        <span class="ps-progress-badge" id="psProgressBadge">0 / 0 signed</span>
+        <!-- Zones 30–42 = same range scanned by auto-detect (mapView.ts) -->
+        <select id="psZoneSelect" class="zone-select">
+          <option value="auto" selected>Auto</option>
+          <optgroup label="North">
+            <option value="30N">30N</option>
+            <option value="31N">31N</option>
+            <option value="32N">32N</option>
+            <option value="33N">33N</option>
+            <option value="34N">34N</option>
+            <option value="35N">35N</option>
+            <option value="36N">36N</option>
+            <option value="37N">37N</option>
+            <option value="38N">38N</option>
+            <option value="39N">39N</option>
+            <option value="40N">40N</option>
+            <option value="41N">41N</option>
+            <option value="42N">42N</option>
+          </optgroup>
+          <optgroup label="South">
+            <option value="30S">30S</option>
+            <option value="31S">31S</option>
+            <option value="32S">32S</option>
+            <option value="33S">33S</option>
+            <option value="34S">34S</option>
+            <option value="35S">35S</option>
+            <option value="36S">36S</option>
+            <option value="37S">37S</option>
+            <option value="38S">38S</option>
+            <option value="39S">39S</option>
+            <option value="40S">40S</option>
+            <option value="41S">41S</option>
+            <option value="42S">42S</option>
+          </optgroup>
+          <option value="dltm">DLTM</option>
+        </select>
+        <button class="btn btn-export" id="psListToggleBtn">📋 List</button>
+        <button class="btn btn-export" id="psReportBtn">🧾 Report</button>
+      </div>
+
+      <div class="ps-map-wrap">
+        <div id="psMapContainer"></div>
+
+        <div class="ps-compass" id="psCompass" hidden>
+          <div class="ps-compass-arrow" id="psCompassArrow">⬆</div>
+          <div class="ps-compass-dist" id="psCompassDist">—</div>
+        </div>
+        <button class="btn ps-compass-enable" id="psCompassEnableBtn" hidden>🧭 Enable compass</button>
+
+        <div class="ps-hint" id="psHint">Tap a point on the map to start signing</div>
+      </div>
+
+      <div class="ps-list-panel" id="psListPanel" hidden></div>
+
+      <div class="ps-action-bar" id="psActionBar">
+        <div class="ps-action-empty" id="psActionEmpty">
+          <span>Select a point to begin</span>
+          <button class="btn loc-btn-add" id="psNextPendingBtn">➡ Go to next point</button>
+        </div>
+        <div class="ps-action-selected" id="psActionSelected" hidden>
+          <div class="ps-action-info">
+            <span class="ps-action-point" id="psActionPoint"></span>
+            <span class="ps-action-coords" id="psActionCoords"></span>
+          </div>
+          <div class="ps-action-buttons">
+            <button class="btn ps-btn-obstructed" id="psObstructedBtn">🚫 Can't see it</button>
+            <button class="btn ps-btn-sign" id="psSignBtn">✓ Sign</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Report ── -->
+    <div id="psReportSection" hidden>
+      <header class="app-header">
+        <button class="back-btn" id="psReportBackBtn" aria-label="Back">‹</button>
+        <div class="header-inner">
+          <div class="header-icon">🧾</div>
+          <div>
+            <h1>Signing Report</h1>
+            <p id="psReportFileName"></p>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="lvl-check-card">
+          <div class="lvl-check-grid ps-report-grid">
+            <div class="lvl-check-item">
+              <span class="lvl-check-label">Signed</span>
+              <span class="lvl-check-val" id="psReportSigned">0</span>
+            </div>
+            <div class="lvl-check-item">
+              <span class="lvl-check-label">Can't see / obstructed</span>
+              <span class="lvl-check-val" id="psReportObstructed">0</span>
+            </div>
+            <div class="lvl-check-item">
+              <span class="lvl-check-label">Pending</span>
+              <span class="lvl-check-val" id="psReportPending">0</span>
+            </div>
+            <div class="lvl-check-item">
+              <span class="lvl-check-label">Total points</span>
+              <span class="lvl-check-val" id="psReportTotal">0</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="ps-report-map-section">
+          <p class="ps-report-map-label">Map snapshot</p>
+          <div class="ps-report-map-frame" id="psReportMapFrame">
+            <p class="ps-report-map-placeholder" id="psReportMapPlaceholder">Capturing map…</p>
+          </div>
+        </section>
+
+        <section class="table-scroll">
+          <table class="results-table" id="psReportTable">
+            <thead>
+              <tr>
+                <th class="col-pt">Point</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th class="col-num">Northing</th>
+                <th class="col-num">Easting</th>
+              </tr>
+            </thead>
+            <tbody id="psReportBody"></tbody>
+          </table>
+        </section>
+
+        <div class="lvl-actions-row">
+          <button class="btn loc-btn-add" id="psPrintBtn">🖨 Print / Save PDF</button>
+          <button class="btn btn-export" id="psExportCsvBtn">Export CSV</button>
+        </div>
+      </main>
+    </div>
+
+  </div>
+
+  <!-- Coordinate-system chooser for "export point → Location Map" -->
+  <dialog id="coordSysDialog" class="coord-dialog">
+    <form method="dialog" class="coord-dialog-body">
+      <h3 class="coord-dialog-title">Points coordinate system</h3>
+      <p class="coord-dialog-hint">Used to convert Northing / Easting into a map location.</p>
+      <!-- Zones 30–42 = same range scanned by auto-detect (mapView.ts) -->
+      <select id="coordSysSelect" class="loc-select">
+        <optgroup label="UTM — North">
+          <option value="30N">UTM 30N</option>
+          <option value="31N">UTM 31N</option>
+          <option value="32N">UTM 32N</option>
+          <option value="33N">UTM 33N</option>
+          <option value="34N">UTM 34N</option>
+          <option value="35N">UTM 35N</option>
+          <option value="36N">UTM 36N</option>
+          <option value="37N">UTM 37N</option>
+          <option value="38N">UTM 38N</option>
+          <option value="39N">UTM 39N</option>
+          <option value="40N" selected>UTM 40N</option>
+          <option value="41N">UTM 41N</option>
+          <option value="42N">UTM 42N</option>
+        </optgroup>
+        <optgroup label="UTM — South">
+          <option value="30S">UTM 30S</option>
+          <option value="31S">UTM 31S</option>
+          <option value="32S">UTM 32S</option>
+          <option value="33S">UTM 33S</option>
+          <option value="34S">UTM 34S</option>
+          <option value="35S">UTM 35S</option>
+          <option value="36S">UTM 36S</option>
+          <option value="37S">UTM 37S</option>
+          <option value="38S">UTM 38S</option>
+          <option value="39S">UTM 39S</option>
+          <option value="40S">UTM 40S</option>
+          <option value="41S">UTM 41S</option>
+          <option value="42S">UTM 42S</option>
+        </optgroup>
+        <option value="dltm">DLTM (Dubai Local TM)</option>
+        <option value="geo">Already Lat / Lng</option>
+      </select>
+      <div class="coord-dialog-actions">
+        <button type="button" id="coordDialogCancel" class="btn btn-export">Cancel</button>
+        <button value="ok" class="btn loc-btn-add">Add to map</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ══════════════════════════════════════════════════════
+       TOOL: DXF Site Plan
+  ══════════════════════════════════════════════════════ -->
+  <div class="view" id="dxfToolView" hidden>
+
+    <header class="app-header">
+      <button class="back-btn" id="dxfBackBtn" aria-label="Back">‹</button>
+      <div class="header-inner">
+        <div class="header-icon">📐</div>
+        <div>
+          <h1>DXF Site Plan</h1>
+          <p>View, measure, extract coordinates, and georeference a DXF plan</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Step 1: Upload ── -->
+    <main class="app-main" id="dxfUploadSection">
+      <section class="lvl-check-card dxf-resume-card" id="dxfResumeCard" hidden>
+        <p class="drop-title">↻ Unfinished DXF session found</p>
+        <p class="drop-sub" id="dxfResumeDetail"></p>
+        <div class="ps-action-buttons">
+          <button class="btn loc-btn-add" id="dxfResumeBtn">Resume</button>
+          <button class="btn ps-btn-obstructed" id="dxfDiscardBtn">Start New</button>
+        </div>
+      </section>
+
+      <section class="upload-section" id="dxfUploadZone">
+        <label class="drop-zone" id="dxfDropZone" tabindex="0" role="button"
+               aria-label="Upload a DXF file — press Enter or Space to browse">
+          <svg class="drop-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M40 8H16a4 4 0 0 0-4 4v40a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V24L40 8z"/>
+            <polyline points="40 8 40 24 56 24"/>
+            <line x1="32" y1="36" x2="32" y2="52"/>
+            <polyline points="25 43 32 36 39 43"/>
+          </svg>
+          <p class="drop-title">Drop a DXF file here</p>
+          <p class="drop-sub">or <span class="drop-link">click to browse</span></p>
+          <input type="file" id="dxfFileInput" accept=".dxf" class="file-input-hidden" tabindex="-1" />
+        </label>
+
+        <div class="file-badge" id="dxfFileBadge" hidden>
+          <span class="file-badge-icon">📐</span>
+          <span class="file-badge-name" id="dxfFileName"></span>
+          <button class="btn-clear" id="dxfClearBtn" title="Remove file">✕</button>
+        </div>
+      </section>
+
+      <div class="error-banner" id="dxfErrorBanner" role="alert" hidden>
+        <span class="error-icon">⚠</span>
+        <span id="dxfErrorText"></span>
+      </div>
+    </main>
+
+    <!-- ── Step 2: CAD canvas (view / measure / extract) ── -->
+    <div id="dxfCadSection" hidden>
+      <div class="ps-toolbar dxf-toolbar">
+        <button class="btn btn-icon" id="dxfZoomExtentsBtn" title="Zoom to extents">⛶</button>
+        <button class="btn btn-icon" id="dxfZoomInBtn" title="Zoom in">+</button>
+        <button class="btn btn-icon" id="dxfZoomOutBtn" title="Zoom out">−</button>
+        <select id="dxfSnapModeSelect" class="zone-select">
+          <option value="both">Snap: Both</option>
+          <option value="endpoint">Snap: Endpoint</option>
+          <option value="intersection">Snap: Intersection</option>
+        </select>
+        <button class="btn btn-export" id="dxfMeasureBtn">📏 Measure</button>
+        <button class="btn btn-export" id="dxfExtractBtn">📍 Extract</button>
+        <button class="btn btn-export" id="dxfSetRefBtn">🎯 Set Reference Points</button>
+        <button class="btn btn-export" id="dxfCadListBtn">📋 List</button>
+        <button class="btn loc-btn-add" id="dxfGotoGeorefBtn">Georeference →</button>
+      </div>
+
+      <div class="dxf-units-banner" id="dxfUnitsBanner" hidden>
+        <span>Drawing units not detected — confirm:</span>
+        <div id="dxfUnitsButtons" class="dxf-units-buttons">
+          <button class="btn btn-export" data-unit="mm">mm</button>
+          <button class="btn btn-export" data-unit="cm">cm</button>
+          <button class="btn btn-export" data-unit="m">m</button>
+          <button class="btn btn-export" data-unit="ft">ft</button>
+        </div>
+      </div>
+
+      <div class="dxf-canvas-wrap">
+        <canvas id="dxfCanvasEl"></canvas>
+        <div class="ps-hint dxf-cad-hint" id="dxfCadHint">Drag to pan, scroll to zoom</div>
+      </div>
+
+      <div class="ps-list-panel" id="dxfCadListPanel" hidden></div>
+    </div>
+
+    <!-- ── Step 3: Georeference ── -->
+    <div id="dxfGeorefSection" hidden>
+      <div class="ps-toolbar">
+        <button class="back-btn" id="dxfGeorefBackBtn" aria-label="Back">‹</button>
+        <span class="ps-progress-badge">Georeference</span>
+      </div>
+
+      <main class="app-main">
+        <!-- Reference point 1 -->
+        <section class="dxf-ref-card">
+          <div class="dxf-ref-card-head">
+            <h3>Reference Point 1</h3>
+            <button class="btn btn-export" id="dxfRef1PickBtn">📍 Pick on drawing</button>
+          </div>
+          <p class="dxf-ref-status" id="dxfRef1DrawingStatus">Not picked yet</p>
+
+          <div class="loc-fmt-tabs" id="dxfRef1FmtTabs">
+            <button class="loc-fmt-tab active" data-fmt="dd">Decimal Degrees</button>
+            <button class="loc-fmt-tab" data-fmt="utm">UTM</button>
+            <button class="loc-fmt-tab" data-fmt="dltm">DLTM</button>
+            <button class="loc-fmt-tab" data-fmt="local">Local</button>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef1PanelDD">
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef1Lat" type="number" step="any" placeholder="Latitude" />
+              <input class="loc-input" id="dxfRef1Lng" type="number" step="any" placeholder="Longitude" />
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef1PanelUTM" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef1UtmN" type="number" step="any" placeholder="Northing (m)" />
+              <input class="loc-input" id="dxfRef1UtmE" type="number" step="any" placeholder="Easting (m)" />
+            </div>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef1UtmZone" type="number" min="1" max="60" placeholder="Zone (1–60)" value="40" />
+              <select class="loc-select loc-select--hemi" id="dxfRef1UtmHemi">
+                <option value="N">N — North</option>
+                <option value="S">S — South</option>
+              </select>
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef1PanelDLTM" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef1DltmN" type="number" step="any" placeholder="Northing (m)" />
+              <input class="loc-input" id="dxfRef1DltmE" type="number" step="any" placeholder="Easting (m)" />
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef1PanelLocal" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef1LocalN" type="number" step="any" placeholder="Local Northing (Y)" />
+              <input class="loc-input" id="dxfRef1LocalE" type="number" step="any" placeholder="Local Easting (X)" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Reference point 2 -->
+        <section class="dxf-ref-card">
+          <div class="dxf-ref-card-head">
+            <h3>Reference Point 2</h3>
+            <button class="btn btn-export" id="dxfRef2PickBtn">📍 Pick on drawing</button>
+          </div>
+          <p class="dxf-ref-status" id="dxfRef2DrawingStatus">Not picked yet</p>
+
+          <div class="loc-fmt-tabs" id="dxfRef2FmtTabs">
+            <button class="loc-fmt-tab active" data-fmt="dd">Decimal Degrees</button>
+            <button class="loc-fmt-tab" data-fmt="utm">UTM</button>
+            <button class="loc-fmt-tab" data-fmt="dltm">DLTM</button>
+            <button class="loc-fmt-tab" data-fmt="local">Local</button>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef2PanelDD">
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef2Lat" type="number" step="any" placeholder="Latitude" />
+              <input class="loc-input" id="dxfRef2Lng" type="number" step="any" placeholder="Longitude" />
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef2PanelUTM" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef2UtmN" type="number" step="any" placeholder="Northing (m)" />
+              <input class="loc-input" id="dxfRef2UtmE" type="number" step="any" placeholder="Easting (m)" />
+            </div>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef2UtmZone" type="number" min="1" max="60" placeholder="Zone (1–60)" value="40" />
+              <select class="loc-select loc-select--hemi" id="dxfRef2UtmHemi">
+                <option value="N">N — North</option>
+                <option value="S">S — South</option>
+              </select>
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef2PanelDLTM" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef2DltmN" type="number" step="any" placeholder="Northing (m)" />
+              <input class="loc-input" id="dxfRef2DltmE" type="number" step="any" placeholder="Easting (m)" />
+            </div>
+          </div>
+          <div class="loc-coords-panel" id="dxfRef2PanelLocal" hidden>
+            <div class="loc-inputs-row">
+              <input class="loc-input" id="dxfRef2LocalN" type="number" step="any" placeholder="Local Northing (Y)" />
+              <input class="loc-input" id="dxfRef2LocalE" type="number" step="any" placeholder="Local Easting (X)" />
+            </div>
+          </div>
+        </section>
+
+        <div class="loc-error-msg" id="dxfGeorefError" hidden></div>
+
+        <button class="btn loc-btn-add" id="dxfComputeBtn">✓ Compute &amp; Verify →</button>
+      </main>
+    </div>
+
+    <!-- ── Step 4: Map verification ── -->
+    <div id="dxfMapSection" hidden>
+      <div class="ps-toolbar">
+        <button class="back-btn" id="dxfMapBackBtn" aria-label="Back">‹</button>
+        <span class="ps-progress-badge">Georeferenced</span>
+        <button class="btn btn-export" id="dxfExportCsvBtn">Export CSV</button>
+        <button class="btn btn-export" id="dxfExportJsonBtn">Export JSON</button>
+        <button class="btn btn-icon" id="dxfMapFullscreenBtn" title="Fullscreen map">⛶</button>
+      </div>
+      <div class="dxf-local-notice" id="dxfMapLocalNotice" hidden>
+        <span>📐</span>
+        <div>
+          <strong>Local coordinate system</strong>
+          <p>Map display is not available — no geographic reference was used. Extracted points carry local E / N coordinates and can be exported below.</p>
+        </div>
+      </div>
+      <div class="ps-map-wrap">
+        <div id="dxfMapContainer"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+
+  <!-- Service Worker Registration with Cache Update Handling -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((reg) => {
+        console.log('[App] Service Worker registered:', reg);
+
+        // Listen for cache update notifications
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data.type === 'CACHE_UPDATED') {
+            console.log('[App] Cache updated to version:', event.data.version);
+          }
+        });
+      }).catch((err) => {
+        console.warn('[App] Service Worker registration failed:', err);
+      });
+    }
+  </script>
+</body>
+</html>
