@@ -673,8 +673,8 @@
       <div class="header-inner">
         <div class="header-icon">📐</div>
         <div>
-          <h1>DXF Site Plan</h1>
-          <p>View, measure, extract coordinates, and georeference a DXF plan</p>
+          <h1>DXF/DWG Site Plan</h1>
+          <p>View, measure, extract coordinates, and georeference a DXF or DWG plan (Supports Civil 3D / يدعم ملفات سيفل ثري دي)</p>
         </div>
       </div>
     </header>
@@ -682,7 +682,7 @@
     <!-- ── Step 1: Upload ── -->
     <main class="app-main" id="dxfUploadSection">
       <section class="lvl-check-card dxf-resume-card" id="dxfResumeCard" hidden>
-        <p class="drop-title">↻ Unfinished DXF session found</p>
+        <p class="drop-title">↻ Unfinished session found</p>
         <p class="drop-sub" id="dxfResumeDetail"></p>
         <div class="ps-action-buttons">
           <button class="btn loc-btn-add" id="dxfResumeBtn">Resume</button>
@@ -692,16 +692,16 @@
 
       <section class="upload-section" id="dxfUploadZone">
         <label class="drop-zone" id="dxfDropZone" tabindex="0" role="button"
-               aria-label="Upload a DXF file — press Enter or Space to browse">
+               aria-label="Upload a DXF or DWG file — press Enter or Space to browse">
           <svg class="drop-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M40 8H16a4 4 0 0 0-4 4v40a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V24L40 8z"/>
             <polyline points="40 8 40 24 56 24"/>
             <line x1="32" y1="36" x2="32" y2="52"/>
             <polyline points="25 43 32 36 39 43"/>
           </svg>
-          <p class="drop-title">Drop a DXF file here</p>
-          <p class="drop-sub">or <span class="drop-link">click to browse</span></p>
-          <input type="file" id="dxfFileInput" accept=".dxf" class="file-input-hidden" tabindex="-1" />
+          <p class="drop-title">Drop a DXF or DWG file here</p>
+          <p class="drop-sub">or <span class="drop-link">click to browse</span> (Supports Civil 3D / يدعم ملفات السيفل ثري دي)</p>
+          <input type="file" id="dxfFileInput" accept=".dxf,.dwg" class="file-input-hidden" tabindex="-1" />
         </label>
 
         <div class="file-badge" id="dxfFileBadge" hidden>

@@ -160,7 +160,87 @@ function summarizeSkips(skipped: Map<string, number>): string[] {
 }
 
 export function parseDxf(text: string): DxfParseResult {
-  const raw: IDxf | null = new DxfParserLib().parseSync(text);
+  const parserInstance = new DxfParserLib();
+  
+  // Register Civil 3D (AEC) entity handlers to prevent skipping them
+  const aecTypes = [
+    'AECC_ALIGNMENT',
+    'AECC_COGO_POINT',
+    'AECC_TIN_SURFACE',
+    'AECC_PARCEL',
+    'AECC_PARCEL_SEGMENT',
+    'AECC_FEATURE_LINE',
+    'AECC_GRID_SURFACE',
+    'AECC_SURFACE',
+    'AECC_POINT',
+    'ACAD_PROXY_ENTITY'
+  ];
+
+  for (const typeName of aecTypes) {
+    (parserInstance as any)._entityHandlers[typeName] = {
+      ForEntityName: typeName,
+      parseEntity: (scanner: any, curr: any) => {
+        const entity = {
+          type: curr.value,
+          layer: '0',
+          vertices: [] as { x: number; y: number; z: number }[]
+        } as any;
+
+        curr = scanner.next();
+        let currentPt = { x: 0, y: 0, z: 0 };
+        while (!scanner.isEOF()) {
+          if (curr.code === 0) break;
+
+          switch (curr.code) {
+            case 8: // Layer name
+              entity.layer = curr.value;
+              break;
+            case 10:
+              currentPt.x = curr.value;
+              let nextGroup = scanner.next();
+              if (nextGroup && nextGroup.code === 20) {
+                currentPt.y = nextGroup.value;
+                let nextNext = scanner.next();
+                if (nextNext && nextNext.code === 30) {
+                  currentPt.z = nextNext.value;
+                } else {
+                  scanner.rewind();
+                }
+              } else {
+                scanner.rewind();
+              }
+              entity.vertices.push({ ...currentPt });
+              currentPt = { x: 0, y: 0, z: 0 };
+              break;
+            case 11:
+              if (!entity.vertices11) entity.vertices11 = [];
+              currentPt.x = curr.value;
+              let nextGroup11 = scanner.next();
+              if (nextGroup11 && nextGroup11.code === 21) {
+                currentPt.y = nextGroup11.value;
+                let nextNext11 = scanner.next();
+                if (nextNext11 && nextNext11.code === 31) {
+                  currentPt.z = nextNext11.value;
+                } else {
+                  scanner.rewind();
+                }
+              } else {
+                scanner.rewind();
+              }
+              entity.vertices11.push({ ...currentPt });
+              currentPt = { x: 0, y: 0, z: 0 };
+              break;
+            default:
+              break;
+          }
+          curr = scanner.next();
+        }
+        return entity;
+      }
+    };
+  }
+
+  const raw: IDxf | null = parserInstance.parseSync(text);
   const warnings: string[] = [];
   if (!raw) {
     return { segments: [], bounds: null, units: 'unknown', unitsUnknown: true, warnings: ['Failed to parse DXF file.'] };
@@ -170,60 +250,297 @@ export function parseDxf(text: string): DxfParseResult {
   const segments: DxfSegment[] = [];
   const skipped = new Map<string, number>();
 
-  for (const entity of raw.entities as IEntity[]) {
-    const layer = entity.layer || '0';
-    switch (entity.type) {
-      case 'LINE': {
-        const e = entity as unknown as ILineEntity;
-        const [a, b] = e.vertices;
-        if (a && b) {
-          segments.push({ x1: a.x * scale, y1: a.y * scale, x2: b.x * scale, y2: b.y * scale, layer });
-        }
-        break;
-      }
-      case 'LWPOLYLINE': {
-        const e = entity as unknown as ILwpolylineEntity;
-        pushPolyline(segments, e.vertices, !!e.shape, layer, scale);
-        break;
-      }
-      case 'POLYLINE': {
-        const e = entity as unknown as IPolylineEntity;
-        if (e.isPolyfaceMesh || e.is3dPolygonMesh) {
-          skipped.set('POLYLINE (mesh)', (skipped.get('POLYLINE (mesh)') ?? 0) + 1);
+  // Helper to compose transformations
+  type TransformFn = (p: { x: number; y: number }) => { x: number; y: number };
+
+  const composeTransform = (
+    parent: TransformFn,
+    tx: number,
+    ty: number,
+    rotDeg: number,
+    sx: number,
+    sy: number
+  ): TransformFn => {
+    const rad = (rotDeg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    return (p: { x: number; y: number }) => {
+      // 1. Scale
+      const xs = p.x * sx;
+      const ys = p.y * sy;
+      // 2. Rotate
+      const xr = xs * cos - ys * sin;
+      const yr = xs * sin + ys * cos;
+      // 3. Translate
+      const xt = xr + tx;
+      const yt = yr + ty;
+      // 4. Pass to parent transform
+      return parent({ x: xt, y: yt });
+    };
+  };
+
+  const toMeters = (p: { x: number; y: number }) => ({ x: p.x * scale, y: p.y * scale });
+
+  // Recursive processor for entities
+  const processEntities = (
+    entitiesList: IEntity[],
+    transform: TransformFn,
+    visitedBlocks = new Set<string>()
+  ) => {
+    for (const entity of entitiesList) {
+      const layer = entity.layer || '0';
+      const type = (entity.type || '').toUpperCase();
+
+      switch (type) {
+        case 'LINE': {
+          const e = entity as unknown as ILineEntity;
+          const [a, b] = e.vertices;
+          if (a && b) {
+            const p1 = transform({ x: a.x, y: a.y });
+            const p2 = transform({ x: b.x, y: b.y });
+            segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+          }
           break;
         }
-        pushPolyline(segments, e.vertices, !!e.shape, layer, scale);
-        break;
-      }
-      case 'CIRCLE': {
-        const e = entity as unknown as ICircleEntity;
-        const pts = arcPoints(e.center.x, e.center.y, e.radius, 0, 2 * Math.PI);
-        for (let j = 0; j < pts.length - 1; j++) {
-          segments.push({
-            x1: pts[j].x * scale, y1: pts[j].y * scale,
-            x2: pts[j + 1].x * scale, y2: pts[j + 1].y * scale,
-            layer,
-          });
+
+        case 'LWPOLYLINE': {
+          const e = entity as unknown as ILwpolylineEntity;
+          const vertices = e.vertices ?? [];
+          const closed = !!e.shape;
+          const n = vertices.length;
+          if (n < 2) break;
+          const last = closed ? n : n - 1;
+          for (let i = 0; i < last; i++) {
+            const a = vertices[i];
+            const b = vertices[(i + 1) % n];
+            const bulge = a.bulge ?? 0;
+            const pts = bulgeToPoints({ x: a.x, y: a.y, z: 0 }, { x: b.x, y: b.y, z: 0 }, bulge);
+            for (let j = 0; j < pts.length - 1; j++) {
+              const p1 = transform(pts[j]);
+              const p2 = transform(pts[j + 1]);
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+          }
+          break;
         }
-        break;
-      }
-      case 'ARC': {
-        const e = entity as unknown as IArcEntity;
-        let start = e.startAngle * DEG2RAD;
-        let end = e.endAngle * DEG2RAD;
-        if (end <= start) end += 2 * Math.PI; // DXF arcs always sweep CCW from start to end
-        const pts = arcPoints(e.center.x, e.center.y, e.radius, start, end);
-        for (let j = 0; j < pts.length - 1; j++) {
-          segments.push({
-            x1: pts[j].x * scale, y1: pts[j].y * scale,
-            x2: pts[j + 1].x * scale, y2: pts[j + 1].y * scale,
-            layer,
-          });
+
+        case 'POLYLINE': {
+          const e = entity as unknown as IPolylineEntity;
+          if (e.isPolyfaceMesh || e.is3dPolygonMesh) {
+            skipped.set('POLYLINE (mesh)', (skipped.get('POLYLINE (mesh)') ?? 0) + 1);
+            break;
+          }
+          const vertices = e.vertices ?? [];
+          const closed = !!e.shape;
+          const n = vertices.length;
+          if (n < 2) break;
+          const last = closed ? n : n - 1;
+          for (let i = 0; i < last; i++) {
+            const a = vertices[i];
+            const b = vertices[(i + 1) % n];
+            const bulge = a.bulge ?? 0;
+            const pts = bulgeToPoints({ x: a.x, y: a.y, z: 0 }, { x: b.x, y: b.y, z: 0 }, bulge);
+            for (let j = 0; j < pts.length - 1; j++) {
+              const p1 = transform(pts[j]);
+              const p2 = transform(pts[j + 1]);
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+          }
+          break;
         }
-        break;
+
+        case 'CIRCLE': {
+          const e = entity as unknown as ICircleEntity;
+          const pts = arcPoints(e.center.x, e.center.y, e.radius, 0, 2 * Math.PI);
+          for (let j = 0; j < pts.length - 1; j++) {
+            const p1 = transform(pts[j]);
+            const p2 = transform(pts[j + 1]);
+            segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+          }
+          break;
+        }
+
+        case 'ARC': {
+          const e = entity as unknown as IArcEntity;
+          let start = e.startAngle * DEG2RAD;
+          let end = e.endAngle * DEG2RAD;
+          if (end <= start) end += 2 * Math.PI;
+          const pts = arcPoints(e.center.x, e.center.y, e.radius, start, end);
+          for (let j = 0; j < pts.length - 1; j++) {
+            const p1 = transform(pts[j]);
+            const p2 = transform(pts[j + 1]);
+            segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+          }
+          break;
+        }
+
+        case 'ELLIPSE': {
+          const e = entity as any;
+          const cx = e.center?.x ?? 0;
+          const cy = e.center?.y ?? 0;
+          const dx = e.majorAxisEndPoint?.x ?? 1;
+          const dy = e.majorAxisEndPoint?.y ?? 0;
+          const a = Math.hypot(dx, dy);
+          const b = a * (e.axisRatio ?? 1);
+          const alpha = Math.atan2(dy, dx);
+          
+          let start = e.startAngle ?? 0;
+          let end = e.endAngle ?? (2 * Math.PI);
+          if (end <= start) end += 2 * Math.PI;
+          
+          const sweep = end - start;
+          const numSteps = Math.max(16, Math.ceil(Math.abs(sweep) / 0.1));
+          const pts: { x: number; y: number }[] = [];
+          for (let k = 0; k <= numSteps; k++) {
+            const t = start + (sweep * k) / numSteps;
+            const xl = a * Math.cos(t);
+            const yl = b * Math.sin(t);
+            pts.push({
+              x: cx + xl * Math.cos(alpha) - yl * Math.sin(alpha),
+              y: cy + xl * Math.sin(alpha) + yl * Math.cos(alpha),
+            });
+          }
+          for (let j = 0; j < pts.length - 1; j++) {
+            const p1 = transform(pts[j]);
+            const p2 = transform(pts[j + 1]);
+            segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+          }
+          break;
+        }
+
+        case 'SPLINE': {
+          const e = entity as any;
+          const pts = (e.fitPoints && e.fitPoints.length > 0) ? e.fitPoints : e.controlPoints;
+          if (pts && pts.length >= 2) {
+            for (let j = 0; j < pts.length - 1; j++) {
+              const p1 = transform({ x: pts[j].x, y: pts[j].y });
+              const p2 = transform({ x: pts[j + 1].x, y: pts[j + 1].y });
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+          }
+          break;
+        }
+
+        case 'SOLID':
+        case '3DFACE': {
+          const e = entity as any;
+          const pts = e.points || e.vertices;
+          if (pts && pts.length >= 3) {
+            for (let j = 0; j < pts.length; j++) {
+              const a = pts[j];
+              const b = pts[(j + 1) % pts.length];
+              const p1 = transform({ x: a.x, y: a.y });
+              const p2 = transform({ x: b.x, y: b.y });
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+          }
+          break;
+        }
+
+        case 'AECC_ALIGNMENT':
+        case 'AECC_COGO_POINT':
+        case 'AECC_TIN_SURFACE':
+        case 'AECC_PARCEL':
+        case 'AECC_PARCEL_SEGMENT':
+        case 'AECC_FEATURE_LINE':
+        case 'AECC_GRID_SURFACE':
+        case 'AECC_SURFACE':
+        case 'AECC_POINT':
+        case 'ACAD_PROXY_ENTITY': {
+          const e = entity as any;
+          const vertices = e.vertices ?? [];
+          const n = vertices.length;
+          if (n >= 2) {
+            for (let i = 0; i < n - 1; i++) {
+              const p1 = transform(vertices[i]);
+              const p2 = transform(vertices[i + 1]);
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+            if (type === 'AECC_PARCEL' || type === 'AECC_TIN_SURFACE') {
+              const p1 = transform(vertices[n - 1]);
+              const p2 = transform(vertices[0]);
+              segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, layer });
+            }
+          } else if (n === 1) {
+            const p = transform(vertices[0]);
+            const crossSize = 0.25;
+            segments.push({ x1: p.x - crossSize, y1: p.y, x2: p.x + crossSize, y2: p.y, layer });
+            segments.push({ x1: p.x, y1: p.y - crossSize, x2: p.x, y2: p.y + crossSize, layer });
+          }
+          break;
+        }
+
+        case 'INSERT': {
+          const insert = entity as any;
+          const blockName = insert.name;
+          if (!blockName || !raw.blocks || !raw.blocks[blockName]) {
+            skipped.set('INSERT (missing block)', (skipped.get('INSERT (missing block)') ?? 0) + 1);
+            break;
+          }
+          if (visitedBlocks.has(blockName)) {
+            break;
+          }
+          const tx = insert.position?.x ?? 0;
+          const ty = insert.position?.y ?? 0;
+          const rot = insert.rotation ?? 0;
+          const sx = insert.xScale ?? 1;
+          const sy = insert.yScale ?? 1;
+
+          const nextTransform = composeTransform(transform, tx, ty, rot, sx, sy);
+          const nextVisited = new Set(visitedBlocks);
+          nextVisited.add(blockName);
+
+          const block = raw.blocks[blockName];
+          if (block && block.entities) {
+            processEntities(block.entities, nextTransform, nextVisited);
+          }
+          break;
+        }
+
+        default:
+          skipped.set(entity.type, (skipped.get(entity.type) ?? 0) + 1);
       }
-      default:
-        skipped.set(entity.type, (skipped.get(entity.type) ?? 0) + 1);
+    }
+  };
+
+  // Run the entities processing starting from top-level entities
+  processEntities(raw.entities as IEntity[], toMeters);
+
+  // Fallback 1: if no segments from top-level entities, try Model Space block
+  if (segments.length === 0 && raw.blocks) {
+    for (const blockName of Object.keys(raw.blocks)) {
+      const upperName = blockName.toUpperCase();
+      if (upperName === '*MODEL_SPACE' || upperName === 'MODEL_SPACE') {
+        const block = raw.blocks[blockName];
+        if (block && block.entities && block.entities.length > 0) {
+          processEntities(block.entities, toMeters);
+        }
+      }
+    }
+  }
+
+  // Fallback 2: if still no segments, check ANY block that is NOT paper space
+  if (segments.length === 0 && raw.blocks) {
+    for (const blockName of Object.keys(raw.blocks)) {
+      const upperName = blockName.toUpperCase();
+      if (upperName.includes('PAPER_SPACE') || upperName.includes('PAPER SPACE')) {
+        continue;
+      }
+      const block = raw.blocks[blockName];
+      if (block && block.entities && block.entities.length > 0) {
+        processEntities(block.entities, toMeters);
+      }
+    }
+  }
+
+  // Fallback 3: last resort, process absolutely everything in raw.blocks
+  if (segments.length === 0 && raw.blocks) {
+    for (const blockName of Object.keys(raw.blocks)) {
+      const block = raw.blocks[blockName];
+      if (block && block.entities && block.entities.length > 0) {
+        processEntities(block.entities, toMeters);
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import proj4 from 'proj4';
 import { parseDxf, rescaleParseResult, type DxfParseResult, type DxfSegment, type DxfBounds, type DxfUnits } from './dxfParser';
+import { parseDwg } from './dwgParser';
 import { DxfCanvas, type SnapMode, type SnapResult, type DxfPoint } from './dxfCanvas';
 import { MapBlock } from './mapBlock';
 import { DLTM_DEF } from './mapView';
@@ -178,7 +179,14 @@ export function restorePersistedSession(): boolean {
     if (!raw) return false;
     const data = JSON.parse(raw) as PersistedDxfSession;
     if (!data.rawDxfText) return false;
-    const result = parseDxf(data.rawDxfText);
+    
+    let result: DxfParseResult;
+    if (data.rawDxfText.trim().startsWith('{')) {
+      result = JSON.parse(data.rawDxfText);
+    } else {
+      result = parseDxf(data.rawDxfText);
+    }
+    
     rawDxfText = data.rawDxfText;
     sourceFileName = data.sourceFileName;
     parseResult = result;
@@ -204,11 +212,26 @@ const UNIT_TO_METERS: Record<DxfUnits, number> = { mm: 0.001, cm: 0.01, m: 1, ft
 
 export async function handleFile(file: File): Promise<{ ok: true } | { ok: false; error: string }> {
   const lower = file.name.toLowerCase();
-  if (!lower.endsWith('.dxf')) return { ok: false, error: 'Please upload a .dxf file.' };
-  const text = await file.text();
-  const result = parseDxf(text);
+  let result: DxfParseResult;
+  let text = '';
+
+  if (lower.endsWith('.dxf')) {
+    text = await file.text();
+    result = parseDxf(text);
+  } else if (lower.endsWith('.dwg')) {
+    const buffer = await file.arrayBuffer();
+    result = await parseDwg(buffer);
+    text = JSON.stringify(result);
+  } else {
+    return { ok: false, error: 'Please upload a .dxf or .dwg file.' };
+  }
+
   if (result.segments.length === 0) {
-    return { ok: false, error: 'No supported entities found (LINE / LWPOLYLINE / POLYLINE / CIRCLE / ARC).' };
+    let msg = 'No supported drawing entities found. Make sure your file contains visible lines, polylines, circles, arcs, ellipses, splines, or solids.';
+    if (result.warnings && result.warnings.length > 0) {
+      msg += ' ' + result.warnings.join('; ') + '.';
+    }
+    return { ok: false, error: msg };
   }
   rawDxfText = text;
   sourceFileName = file.name;
